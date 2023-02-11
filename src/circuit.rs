@@ -4,8 +4,8 @@ pub struct Circuit<'l> {
     b: Vec<&'l str>,
     c: Vec<&'l str>,
     op: Vec<Vec<i32>>,
-    pub pub_gate_position: Option<[usize; 1]>,
-    pub pub_gate_value: Option<i32>,
+    pub pub_gate_position: Vec<usize>,
+    pub pub_gate_value: Vec<i32>,
 }
 
 impl<'l> Circuit<'l> {
@@ -14,8 +14,8 @@ impl<'l> Circuit<'l> {
         let b = Vec::new();
         let c = Vec::new();
         let op = Vec::new();
-        let pub_gate_position = None;
-        let pub_gate_value = None;
+        let pub_gate_position = Vec::new();
+        let pub_gate_value = Vec::new();
         Circuit {
             a,
             b,
@@ -44,8 +44,8 @@ impl<'l> Circuit<'l> {
                 .op
                 .push(vec![0, 1, 0, 0, -1 * b.parse::<i32>().unwrap()]),
             Operation::PublicInput => {
-                self.pub_gate_position = Some([self.op.len()]);
-                self.pub_gate_value = Some(b.parse::<i32>().unwrap());
+                self.pub_gate_position.push(self.op.len());
+                self.pub_gate_value.push(b.parse::<i32>().unwrap());
                 self.op.push(vec![0, 1, 0, 0, 0]);
             }
             Operation::Empty => self.op.push(vec![0, 0, 0, 0, 0]),
@@ -74,6 +74,26 @@ impl<'l> Circuit<'l> {
         let n = self.a.len();
         assert!(n & n - 1 == 0, "n must be a power of 2");
         n
+    }
+
+    pub fn check_witness(&self, witness: &Vec<i32>) -> bool {
+        let n = witness.len();
+        assert!(n % 3 == 0);
+        let a = witness[..n / 3].to_vec();
+        let b = witness[n / 3..(2 * n) / 3].to_vec();
+        let c = witness[(2 * n) / 3..n].to_vec();
+        for i in 0..self.op.len() {
+            if a[i] * self.op[i][0]
+                + b[i] * self.op[i][1]
+                + c[i] * self.op[i][2]
+                + a[i] * b[i] * self.op[i][3]
+                + self.op[i][4]
+                != 0
+            {
+                return false;
+            }
+        }
+        true
     }
 }
 

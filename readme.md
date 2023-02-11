@@ -1,0 +1,3 @@
+- My hacky implementation of plonk in rust
+- Basically a port of [my python implementation](https://github.com/ETHorHIL/Plonk_Py)
+- Its based on a 2020 version of the plonk paper, there have been some optimisations since

@@ -1,15 +1,14 @@
-mod circuit;
-mod prover;
-mod setup;
-mod utils;
-mod verifier;
+pub mod circuit;
+pub mod prover;
+pub mod setup;
+pub mod utils;
+pub mod verifier;
 
 #[cfg(test)]
-mod tests {
-    use crate::circuit::{Circuit, Operation};
+pub mod tests {
+    use crate::circuit::Operation;
 
     use super::*;
-    use ark_poly::*;
     use ark_test_curves::bls12_381::Fr;
     use prover::prover_algo;
     use setup::setup_algo;
@@ -67,10 +66,10 @@ mod tests {
         let setup_output = setup_algo(
             circuit.get_gates_matrix(),
             circuit.get_permuted_indices(),
-            circuit.pub_gate_position.unwrap(),
-            circuit.pub_gate_value.unwrap(),
+            circuit.pub_gate_position,
+            circuit.pub_gate_value,
         );
-        println!("Setup Complete. Output: {:?}", setup_output);
+        println!("Setup Complete. Output:");
 
         // # The prover calculates the proof
         let proof = prover_algo(witness, &setup_output.clone());
@@ -130,8 +129,85 @@ mod tests {
         let setup_output = setup_algo(
             circuit.get_gates_matrix(),
             circuit.get_permuted_indices(),
-            circuit.pub_gate_position.unwrap(),
-            circuit.pub_gate_value.unwrap(),
+            circuit.pub_gate_position,
+            circuit.pub_gate_value,
+        );
+        println!("Setup Complete. Output: {:?}", setup_output);
+
+        // # The prover calculates the proof
+        let proof = prover_algo(witness, &setup_output.clone());
+        println!("Computed Proof: {:?}", proof);
+
+        //# Verifier checks if proof checks out
+        verifier_algo(
+            proof,
+            n,
+            setup_output.p_i_poly,
+            setup_output.verifier_preprocessing,
+            setup_output.perm_precomp.2,
+        );
+    }
+
+    #[test]
+    fn my_example_two_public_inputs() {
+        /*
+        I wan to prove that I know x,y so that x^2 + y + 1 = 12
+        solution x =3, y =2
+
+        # Constrains
+        x     * x = var1
+        1 const 1 = 1
+        1 pub_i 10 = 10
+        1 pub_i  = 2
+        var1  + 1 = 10
+        10 + 2 = 12
+        empty1 ° empty3 = empty5
+        empty2 ° empty4 = empty6
+
+        # Witness
+        a   b   c
+        ---------
+        3 * 3 = 9
+        1 ° 1 = 1
+        1 ° 10 = 10
+        1 ° 2  = 2
+        9 + 1 = 10
+        10 + 2 = 12
+        0 ° 0 = 0
+        0 ° 0 = 0
+        */
+
+        let mut circuit = circuit::Circuit::new();
+        // We only care about detecting repeating values in the equations. So it doesnt matter whats
+        // in the strings. Except for Const and Public input where we parse the b value into a i32.
+        // right any number of public inputs other than 1 is unsupportend (also zero)
+        circuit.add_constraint("x", Operation::Mul, "x", "var1");
+        circuit.add_constraint("1", Operation::Const, "1", "1");
+        circuit.add_constraint("1", Operation::PublicInput, "10", "10");
+        circuit.add_constraint("1", Operation::PublicInput, "2", "2");
+        circuit.add_constraint("var1", Operation::Add, "1", "10");
+        circuit.add_constraint("10", Operation::Add, "2", "12");
+        circuit.add_constraint("empty1", Operation::Empty, "empty3", "empty5");
+        circuit.add_constraint("empty2", Operation::Empty, "empty4", "empty6");
+
+        // satisfying witness for the circuit. Plugging in these numbers will make all equations above check out
+        let witness = vec![
+            3, 1, 1, 1, 9, 10, 0, 0, // a
+            3, 1, 10, 2, 1, 2, 0, 0, // b
+            9, 1, 10, 2, 10, 12, 0, 0, // c
+        ];
+        circuit.check_witness(&witness);
+        let witness: Vec<Fr> = (0..witness.len()).map(|f| Fr::from(witness[f])).collect();
+
+        // We start with a setup that computes the trusted setup and does some
+        // precomputation
+        let n = circuit.lenght();
+
+        let setup_output = setup_algo(
+            circuit.get_gates_matrix(),
+            circuit.get_permuted_indices(),
+            circuit.pub_gate_position,
+            circuit.pub_gate_value,
         );
         println!("Setup Complete. Output: {:?}", setup_output);
 
@@ -187,8 +263,8 @@ mod tests {
 
         // To enable a public input 35 we need to specify the position
         // of the gate in L and the value of the public input in p_i
-        let pub_gate_position: [usize; 1] = [4 as usize];
-        let pub_input_value = 35;
+        let pub_gate_position = vec![4 as usize];
+        let pub_input_value = vec![35];
         let n = gates_matrix.len();
 
         let gates_matrix = transpose(gates_matrix);

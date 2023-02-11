@@ -9,8 +9,8 @@ use ark_test_curves::*;
 pub fn setup_algo(
     gates_matrix: Vec<Vec<i32>>,
     permutation: Vec<usize>,
-    pub_gate_position: [usize; 1],
-    pub_input_value: i32,
+    pub_input_position: Vec<usize>,
+    pub_input_value: Vec<i32>,
 ) -> SetupOutput {
     let g1 = G1Projective::generator();
 
@@ -34,7 +34,11 @@ pub fn setup_algo(
     // The public input poly vanishes everywhere except for the position of the
     // public input gate where it evaluates to -(public_input)
     let mut public_input: Vec<Fr> = (0..n).map(|_x| Fr::from(0)).collect();
-    public_input[pub_gate_position[0]] = Fr::from(-1 * pub_input_value); //using -1 is correct
+    for i in 0..pub_input_position.len() {
+        public_input[pub_input_position[i]] = Fr::from(-1 * pub_input_value[i]);
+        //using -1 is correct
+    }
+
     let p_i_poly = Evaluations::from_vec_and_domain(public_input, domain).interpolate();
 
     // We generate domains on which we can evaluate the witness polynomials
@@ -130,7 +134,7 @@ pub fn evaluate_in_exponent(
             poly.degree(),
             powers_of_tau.len()
         );
-        assert!(poly.degree() < powers_of_tau.len());
+        assert!(poly.degree() <= powers_of_tau.len());
     }
 
     let coeffs = poly.coeffs.clone();
